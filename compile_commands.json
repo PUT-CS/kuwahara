@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/michal/Programming/median-filter",
+  "command": "/usr/bin/c++  -isystem /usr/include/opencv4  -o CMakeFiles/median-filter.dir/src/main.cpp.o -c /home/michal/Programming/median-filter/src/main.cpp",
+  "file": "/home/michal/Programming/median-filter/src/main.cpp"
+}
+]
