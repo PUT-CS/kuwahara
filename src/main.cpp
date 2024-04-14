@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <iostream>
 #include <list>
+#include <opencv2/core/cvdef.h>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
@@ -27,25 +28,15 @@ void print(T t, Args... args)
 
 typedef cv::Vec3b Pixel;
 
-constexpr const double WINDOW_SIZE = 9.0;
-
-constexpr int32_t myCeil(float num)
-{
-    return (static_cast<float>(static_cast<int32_t>(num)) == num)
-        ? static_cast<int32_t>(num)
-        : static_cast<int32_t>(num) + ((num > 0) ? 1 : 0);
-}
+constexpr const double WINDOW_SIZE = 19.0;
 
 bool pixelInBounds(const cv::Mat& image, int x, int y)
 {
     return x >= 0 && x < image.size().width && y >= 0 && y < image.size().height;
 }
 
-enum Quadrant { TOP_LEFT,
-    TOP_RIGHT,
-    BOTTOM_LEFT,
-    BOTTOM_RIGHT,
-    NONE = -1 };
+enum Quadrant { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, NONE = -1 };
+
 struct QuadrantResult {
     Quadrant q1;
     Quadrant q2;
@@ -113,25 +104,36 @@ std::ostream& operator<<(std::ostream& os, const QuadrantResult& result)
     return os;
 }
 
+typedef uchar PixelValue;
+
+typedef union {
+    struct BGRPixel {
+        uchar b;
+        uchar g;
+        uchar r;
+        uchar luminosity;
+    } pixel;
+    uchar data[4];
+} BGRPixel;
+
 // calculate the standard deviation of a list of values
-double standardDeviation(const std::vector<int>& values)
+// operates only on the luminosity of the pixel
+double standardDeviation(const std::vector<BGRPixel>& values)
 {
     double sum = 0.0;
     double variance = 0.0;
-
+    
     for (int i = 0; i < values.size(); i++) {
-        sum += values[i];
+        sum += values[i].pixel.luminosity;
     }
 
     double mean = sum / values.size();
     for (int i = 0; i < values.size(); i++) {
-        variance += std::pow(values[i] - mean, 2);
+        variance += std::pow(values[i].pixel.luminosity - mean, 2);
     }
 
     return std::sqrt(variance / values.size());
 }
-
-typedef int PixelValue;
 
 /// calculate the luminosity of a BGR pixel
 double luminosity(const Pixel& pixel)
@@ -139,26 +141,18 @@ double luminosity(const Pixel& pixel)
     return 0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0];
 }
 
-struct QuadrantEntry {
-    int luminosity;
-    uchar b;
-    uchar g;
-    uchar r;
-};
-
 /// convert the image to black and white
 void kuwahara(cv::Mat& image, cv::Mat& outputImage)
 {
-    constexpr int quadrantSize = myCeil(WINDOW_SIZE / 2.0);
-    constexpr int quadrantArea = quadrantSize * quadrantSize - 1; // ignore the central pixel
-    auto quadrants = std::array<std::vector<PixelValue>, 4>();
     const int height = image.size().height;
     const int width = image.size().width;
+    
+    const int quadrantSize = ceil(WINDOW_SIZE / 2.0);
+    auto quadrants = std::array<std::vector<BGRPixel>, 4>();
 
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             auto& pixel = image.at<Pixel>(x, y);
-            // const int value = static_cast<int>(pixel[2]);
             // loop through the entire window around this pixel
             // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
 
@@ -178,41 +172,46 @@ void kuwahara(cv::Mat& image, cv::Mat& outputImage)
                         continue;
                     }
 
-                    Pixel neighbourPixel = image.at<Pixel>(pixelX, pixelY);
-                    auto neighbourLuminosity = static_cast<int>(luminosity(neighbourPixel));
+                    auto& neighbourPixel = image.at<Pixel>(pixelX, pixelY);
 
+                    // calculate luminosity of the rbg pixel to avod the problem described in
+                    // https://en.wikipedia.org/wiki/Kuwahara_filter#Color_images
+                    auto pixelLuminosity = static_cast<uchar>(luminosity(neighbourPixel));
+                    BGRPixel bgrPixel = { neighbourPixel[0], neighbourPixel[1], neighbourPixel[2], pixelLuminosity };
+
+                    // check which quadrants the pixel belongs to
                     auto quadrantResult = checkQuadrant(i, j);
+
                     // add the pixel to our lists
-                    quadrants[quadrantResult.q1].push_back(neighbourLuminosity);
+                    quadrants[quadrantResult.q1].push_back(bgrPixel);
 
                     // if the pixel belongs to two quadrants, add it to the second quadrant
                     if (quadrantResult.q2 != NONE) {
-                        quadrants[quadrantResult.q2].push_back(neighbourLuminosity);
+                        quadrants[quadrantResult.q2].push_back(bgrPixel);
                     }
                 }
+                
                 // after checking all quadrants, calculcate the standard deviations
-                // index of minimum standard deviation
                 int minIdx = 0;
-                double minStdDev = 255.0;
+                double minStdDev = 256.0;
                 for (int i = 0; i < 4; i++) {
                     double currStdDev = standardDeviation(quadrants[i]);
-                    if (currStdDev < minStdDev) {
+                    if (currStdDev < minStdDev) { // new minimum
                         minStdDev = currStdDev;
                         minIdx = i;
                     }
                 }
 
-                // calculate the average of the RBG pixels in the minimum standard deviation quadrant
-                double sum = 0.0;
-                for (const auto& value : quadrants[minIdx]) {
-                    sum += value;
+                // calculate the average of the BGR pixels in the minimum standard deviation quadrant
+                for (int channel = 0; channel < 3; channel++) {
+                    double sum = 0;
+                    for (const auto &value : quadrants[minIdx]) {
+                        sum += value.data[channel];
+                    }
+                    double average = sum / quadrants[minIdx].size();
+                    // set the pixel value to the average RGB of the quadrant
+                    outputImage.at<Pixel>(x, y)[channel] = static_cast<uchar>(average);
                 }
-                double average = sum / quadrants[minIdx].size();
-
-                // set the pixel value to the average RGB of the quadrant
-                outputImage.at<Pixel>(x, y)[0] = static_cast<uchar>(average);
-                outputImage.at<Pixel>(x, y)[1] = static_cast<uchar>(average);
-                outputImage.at<Pixel>(x, y)[2] = static_cast<uchar>(average);
             }
         }
     }
@@ -240,44 +239,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
-// int main(int argc, char** argv)
-// {
-//     // Load the BGR image
-//     cv::Mat bgrImage = cv::imread(argv[1], cv::IMREAD_COLOR);
-
-//     if (bgrImage.empty()) {
-//         std::cerr << "Could not open or find the image" << std::endl;
-//         return -1;
-//     }
-
-//     // Convert BGR image to HSV
-//     cv::Mat hsvImage;
-//     cvtColor(bgrImage, hsvImage, cv::COLOR_BGR2HSV);
-
-//     // Access pixel values at a specific position (100, 100)
-//     int y = 100;
-//     int x = 100;
-
-//     // Check if the coordinates are within the image bounds
-//     if (x >= 0 && x < hsvImage.cols && y >= 0 && y < hsvImage.rows) {
-//         // Access pixel values
-//         cv::Vec3b pixel = hsvImage.at<cv::Vec3b>(y, x);
-//         uchar hue = pixel[0]; // Hue value
-//         uchar saturation = pixel[1]; // Saturation value
-//         uchar value = pixel[2]; // Value (brightness) value
-
-//         // Convert saturation and value to percentages
-//         float saturationPercentage = static_cast<float>(saturation) / 255.0f * 100.0f;
-//         float valuePercentage = static_cast<float>(value) / 255.0f * 100.0f;
-
-//         // Print the HSV values in proper format
-//         std::cout << "HSV values at position (" << x << ", " << y << "): ";
-//         std::cout << "(" << static_cast<int>(hue * 2) << ", " << saturationPercentage << "%, " << valuePercentage << "%)" << std::endl;
-//     } else {
-//         std::cerr << "Coordinates out of bounds" << std::endl;
-//         return -1;
-//     }
-
-//     return 0;
-// }
