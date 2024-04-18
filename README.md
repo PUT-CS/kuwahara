@@ -13,20 +13,22 @@ make
 ```
 ## Run
 ```bash
-kuwahara [INPUT_IMAGE_PATH] [OUTPUT_IMAGE_PATH]
+./kuwahara [INPUT_IMAGE_PATH] [OUTPUT_IMAGE_PATH]
 ```
-
-To run:
 # Showcase
 Numbers indicate the window dimensions (it's always square for now)
-From the left: Original, 5, 13, 19
+
+Top image: Original
+
+Bottom row: 5, 9, 13, 17
 
 <p align="middle">
-  <img src="img/lena.jpg" width="100" />
-  <img src="img/lena5.jpg" width="100" />
-  <img src="img/lena9.jpg" width="100" />
-  <img src="img/lena13.jpg" width="100" />
-  <img src="img/lena17.jpg" width="100" />
+  <img src="img/lena.jpg" width="200" />
+  <br>
+  <img src="img/lena5.jpg" width="200" />
+  <img src="img/lena9.jpg" width="200" />
+  <img src="img/lena13.jpg" width="200" />
+  <img src="img/lena17.jpg" width="200" />
 </p>
 
 # Measurements
