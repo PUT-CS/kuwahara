@@ -28,7 +28,7 @@ void print(T t, Args... args)
 
 typedef cv::Vec3b Pixel;
 
-constexpr const double WINDOW_SIZE = 19.0;
+constexpr const double WINDOW_SIZE = 9.0;
 
 bool pixelInBounds(const cv::Mat& image, int x, int y)
 {
