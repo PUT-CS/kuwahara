@@ -31,6 +31,15 @@ Bottom row: 5, 9, 13, 17
   <img src="img/lena17.jpg" width="200" />
 </p>
 
+<p align="middle">
+  <img src="img/morskieOko.jpg" width="200" />
+  <br>
+  <img src="img/morskieOko5.jpg" width="200" />
+  <img src="img/morskieOko9.jpg" width="200" />
+  <img src="img/morskieOko13.jpg" width="200" />
+  <img src="img/morskieOko17.jpg" width="200" />
+</p>
+
 # Measurements
 **TODO**
 

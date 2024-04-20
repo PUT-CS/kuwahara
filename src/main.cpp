@@ -1,8 +1,10 @@
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <list>
 #include <opencv2/core/cvdef.h>
@@ -32,10 +34,14 @@ constexpr const double WINDOW_SIZE = 9.0;
 
 bool pixelInBounds(const cv::Mat& image, int x, int y)
 {
-    return x >= 0 && x < image.size().width && y >= 0 && y < image.size().height;
+    return x >= 0 && x < image.size().height && y >= 0 && y < image.size().width;
 }
 
-enum Quadrant { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, NONE = -1 };
+enum Quadrant { TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT,
+    NONE = -1 };
 
 struct QuadrantResult {
     Quadrant q1;
@@ -94,6 +100,7 @@ QuadrantResult checkQuadrant(int i, int j)
     }
 
     // should never happen, we ignore the central pixel
+    print("Error: Pixel belongs to no quadrant");
     return { NONE, NONE };
 }
 
@@ -122,7 +129,7 @@ double standardDeviation(const std::vector<BGRPixel>& values)
 {
     double sum = 0.0;
     double variance = 0.0;
-    
+
     for (int i = 0; i < values.size(); i++) {
         sum += values[i].pixel.luminosity;
     }
@@ -144,23 +151,23 @@ double luminosity(const Pixel& pixel)
 /// convert the image to black and white
 void kuwahara(cv::Mat& image, cv::Mat& outputImage)
 {
-    const int height = image.size().height;
-    const int width = image.size().width;
-    
     const int quadrantSize = ceil(WINDOW_SIZE / 2.0);
     auto quadrants = std::array<std::vector<BGRPixel>, 4>();
+    quadrants.fill(std::vector<BGRPixel>());
 
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
+    for (int x = 0; x < image.size().height; x++) {
+        for (int y = 0; y < image.size().width; y++) {
             auto& pixel = image.at<Pixel>(x, y);
-            // loop through the entire window around this pixel
-            // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
+            
+            //loop through the entire window around this pixel
+            //https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
 
             // clear all quadrants
             for (auto& quadrant : quadrants) {
                 quadrant.clear();
             }
 
+            // print("Checking quadrants for pixel at ", x, y);
             for (int i = -quadrantSize + 1; i < quadrantSize; i++) {
                 for (int j = -quadrantSize + 1; j < quadrantSize; j++) {
                     // check if the pixel is within the bounds of the image
@@ -171,47 +178,56 @@ void kuwahara(cv::Mat& image, cv::Mat& outputImage)
                     if (i == 0 && j == 0) {
                         continue;
                     }
-
                     auto& neighbourPixel = image.at<Pixel>(pixelX, pixelY);
 
                     // calculate luminosity of the rbg pixel to avod the problem described in
                     // https://en.wikipedia.org/wiki/Kuwahara_filter#Color_images
                     auto pixelLuminosity = static_cast<uchar>(luminosity(neighbourPixel));
-                    BGRPixel bgrPixel = { neighbourPixel[0], neighbourPixel[1], neighbourPixel[2], pixelLuminosity };
-
+                    BGRPixel bgrPixel = { static_cast<uchar>(neighbourPixel[0]), static_cast<uchar>(neighbourPixel[1]), static_cast<uchar>(neighbourPixel[2]), pixelLuminosity };
                     // check which quadrants the pixel belongs to
                     auto quadrantResult = checkQuadrant(i, j);
 
                     // add the pixel to our lists
                     quadrants[quadrantResult.q1].push_back(bgrPixel);
-
                     // if the pixel belongs to two quadrants, add it to the second quadrant
                     if (quadrantResult.q2 != NONE) {
                         quadrants[quadrantResult.q2].push_back(bgrPixel);
                     }
                 }
-                
-                // after checking all quadrants, calculcate the standard deviations
-                int minIdx = 0;
-                double minStdDev = 256.0;
-                for (int i = 0; i < 4; i++) {
-                    double currStdDev = standardDeviation(quadrants[i]);
-                    if (currStdDev < minStdDev) { // new minimum
-                        minStdDev = currStdDev;
-                        minIdx = i;
-                    }
-                }
+            }
 
-                // calculate the average of the BGR pixels in the minimum standard deviation quadrant
-                for (int channel = 0; channel < 3; channel++) {
-                    double sum = 0;
-                    for (const auto &value : quadrants[minIdx]) {
-                        sum += value.data[channel];
-                    }
-                    double average = sum / quadrants[minIdx].size();
-                    // set the pixel value to the average RGB of the quadrant
-                    outputImage.at<Pixel>(x, y)[channel] = static_cast<uchar>(average);
+            // after checking all quadrants, calculcate the standard deviations
+            int minIdx = -1;
+            double minStdDev = 255;
+
+            for (auto& quadrant : quadrants) {
+                if (quadrant.empty()) {
+                    continue;
                 }
+                double currStdDev = standardDeviation(quadrant);
+                if (currStdDev < minStdDev) { // new minimum
+                    minStdDev = currStdDev;
+                    minIdx = &quadrant - &quadrants[0];
+                }
+            }
+            if (minIdx == -1) {
+                print("Error: No minimum standard deviation found");
+                exit(1);
+            }
+
+            // calculate the average of the BGR pixels in the minimum standard
+            // deviation quadrant
+            auto& outputPixel = outputImage.at<Pixel>(x, y);
+
+            for (int channel = 0; channel < 3; channel++) {
+                double sum = 0;
+                for (const auto &value : quadrants[minIdx]) {
+                    sum += value.data[channel];
+                }
+                double average = sum / quadrants[minIdx].size();
+                
+                // set the pixel value to the average RGB of the quadrant
+                outputPixel[channel] = static_cast<uchar>(average);
             }
         }
     }
@@ -230,10 +246,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    auto outputImage = bgrImage.clone();
+    auto outputImage = cv::Mat(bgrImage.size(), bgrImage.type());
 
     kuwahara(bgrImage, outputImage);
-    print("Done");
 
     cv::imwrite(outputPath, outputImage);
 
