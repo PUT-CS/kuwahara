@@ -1,6 +1,7 @@
 #ifndef QUADRANT_H
 #define QUADRANT_H
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -19,6 +20,8 @@ struct QuadrantResult {
     Quadrant q1;
     Quadrant q2;
 };
+
+typedef std::array<std::vector<BGRPixel>, 4> Quadrants;
 
 // print the enum as string
 inline std::ostream& operator<<(std::ostream& os, const Quadrant& quadrant)
