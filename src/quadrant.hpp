@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include "pixel.hpp"
 #include "print.hpp"
 
 enum Quadrant {
@@ -84,7 +85,7 @@ inline std::ostream& operator<<(std::ostream& os, const QuadrantResult& result)
 
 // calculate the standard deviation of a list of values
 // operates only on the luminosity of the pixel
-double standardDeviation(const std::vector<> &values) {
+inline double standardDeviation(const std::vector<BGRPixel> &values) {
   double sum = 0.0;
   double variance = 0.0;
 
