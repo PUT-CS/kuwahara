@@ -18,6 +18,9 @@ typedef union {
 } BGRPixel;
 
 /// calculate the luminosity of a BGR pixel
+inline double luminosity(const BGRPixel &pixel) {
+  return 0.299 * pixel.pixel.r + 0.587 * pixel.pixel.g + 0.114 * pixel.pixel.b;
+}
 inline double luminosity(const Pixel &pixel) {
   return 0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0];
 }
