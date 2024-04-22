@@ -74,58 +74,42 @@ double findIndexOfMinStdDev(const Quadrants& quadrants) {
     return minIdx;
 }
 
-// BGRPixel avgOfQuadrant(const std::vector<BGRPixel>& quadrant) {
-//     BGRPixel avgPixel = {0, 0, 0, 0};
-//     for (const auto &pixel : quadrant) {
-//         double sum = 0;
-//         for (int i = 0; i < 3; i++) {
-//             sum += pixel.data[i];
-//         }
-//         avgPixel.data[0] = static_cast<uchar>(sum / quadrant.size());
-//     }
-//     return avgPixel;
-// }
+BGRPixel avgOfQuadrant(const std::vector<BGRPixel> &quadrant) {
+    BGRPixel avgPixel;
+    for (int channel = 0; channel < 3; channel++) {
+        double sum = 0;
+        for (const auto &value : quadrant) {
+            sum += value.data[channel];
+        }
+        double average = sum / quadrant.size();
+
+        // set the pixel value to the average RGB of the quadrant
+        avgPixel.data[channel] = static_cast<uchar>(average);
+        // outputPixel.data[channel] = avgPixel.data[channel];
+    }
+    return avgPixel;
+}
 
 /// convert the image to black and white
 void kuwahara(BGRPixel** image, BGRPixel** outputImage, cv::Size size) {
-    
     auto quadrants = std::array<std::vector<BGRPixel>, 4>();
-    quadrants.fill(std::vector<BGRPixel>());
-
+   
     for (int x = 0; x < size.height; x++) {
         for (int y = 0; y < size.width; y++) {
-            auto &pixel = image[x][y];
-
-            // loop through the entire window around this pixel
-            // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
-
             // clear all quadrants
             for (auto &quadrant : quadrants) {
                 quadrant.clear();
             }
 
+            // loop through the entire window around this pixel
+            // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
             fillQuadrants(quadrants, image, x, y, size);
 
             // after checking all quadrants, calculcate the standard deviations
             auto minIdx = findIndexOfMinStdDev(quadrants);
 
-            // calculate the average of the BGR pixels in the minimum standard
-            // deviation quadrant
-            auto &outputPixel = outputImage[x][y];
-
-            // auto avgPixel = avgOfQuadrant(quadrants[minIdx]);
-
-            for (int channel = 0; channel < 3; channel++) {
-                double sum = 0;
-                for (const auto &value : quadrants[minIdx]) {
-                    sum += value.data[channel];
-                }
-                double average = sum / quadrants[minIdx].size();
-                
-                // set the pixel value to the average RGB of the quadrant
-                outputPixel.data[channel] = static_cast<uchar>(average);
-                //outputPixel.data[channel] = avgPixel.data[channel];
-            }
+            // calculate the average of the BGR pixels in the minimum standard deviation quadrant
+            outputImage[x][y] = avgOfQuadrant(quadrants[minIdx]);
         }
     }
 }
@@ -149,8 +133,8 @@ int main(int argc, char **argv) {
     kuwahara(pixels, outputPixels, size);
 
     auto outputMat = fromBGRPixelArray(outputPixels, size);
-    
     cv::imwrite(outputPath, outputMat);
+    
     deallocateBGRPixelArray(pixels, size);
     deallocateBGRPixelArray(outputPixels, size);
 
