@@ -13,7 +13,7 @@ make
 ```
 ## Run
 ```bash
-./kuwahara [INPUT_IMAGE_PATH] [OUTPUT_IMAGE_PATH]
+./kuwahara INPUT_IMAGE_PATH OUTPUT_IMAGE_PATH [--window WINDOW_SIZE]
 ```
 # Showcase
 Numbers indicate the window dimensions (it's always square for now)
@@ -40,7 +40,7 @@ Bottom row: 5, 9, 13, 17
   <img src="img/morskieOko17.jpg" width="200" />
 </p>
 
-# Measurements
+# Performance Benchmarks
 **TODO**
 
 # Author

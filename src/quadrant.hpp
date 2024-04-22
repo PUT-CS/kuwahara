@@ -8,44 +8,42 @@
 #include "pixel.hpp"
 #include "print.hpp"
 
-enum Quadrant {
-    TOP_LEFT,
-    TOP_RIGHT,
-    BOTTOM_LEFT,
-    BOTTOM_RIGHT,
-    NONE = -1
+enum QuadrantKind { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, NONE = -1 };
+
+struct QuadrantContainer {
+    BGRPixel* quadrants[4]; // 4 bgr pixel arrays
+    int write_counts[4]; // 4 counting arrays
 };
 
+inline void allocateQuadrants(QuadrantContainer &container, int quadrantArea) {
+    for (int i = 0; i < 4; i++) {
+        container.quadrants[i] = new BGRPixel[quadrantArea]();
+        container.write_counts[i] = 0;
+    }
+}
+
+inline void pushToQuadrant(QuadrantContainer &container, int i, BGRPixel pixel) {
+    container.quadrants[i][container.write_counts[i]++] = pixel;
+}
+
+inline void cleanQuadrants(QuadrantContainer &container) {
+    for (int i = 0; i < 4; i++) {
+        container.write_counts[i] = 0;
+    }
+}
+
+inline void deallocateQuadrants(QuadrantContainer &container) {
+    for (int i = 0; i < 4; i++) {
+        delete[] container.quadrants[i];
+    }
+}
+
 struct QuadrantResult {
-    Quadrant q1;
-    Quadrant q2;
+    QuadrantKind q1;
+    QuadrantKind q2;
 };
 
 typedef std::array<std::vector<BGRPixel>, 4> Quadrants;
-
-// print the enum as string
-inline std::ostream& operator<<(std::ostream& os, const Quadrant& quadrant)
-{
-    switch (quadrant) {
-    case Quadrant::TOP_LEFT:
-        os << "TOP_LEFT";
-        break;
-    case Quadrant::TOP_RIGHT:
-        os << "TOP_RIGHT";
-        break;
-    case Quadrant::BOTTOM_LEFT:
-        os << "BOTTOM_LEFT";
-        break;
-    case Quadrant::BOTTOM_RIGHT:
-        os << "BOTTOM_RIGHT";
-        break;
-    default:
-        os << "";
-        break;
-    }
-
-    return os;
-}
 
 /// A pixel belongs to two quadrants at the same time.
 /// Fills the 2 int indexes with the quadrant values, else -1.
@@ -77,31 +75,6 @@ inline QuadrantResult checkQuadrant(int i, int j)
     // should never happen, we ignore the central pixel
     print("Error: Pixel belongs to no quadrant");
     return { NONE, NONE };
-}
-
-// print quadrant result
-inline std::ostream& operator<<(std::ostream& os, const QuadrantResult& result)
-{
-    os << "Quadrant 1: " << result.q1 << ", Quadrant 2: " << result.q2;
-    return os;
-}
-
-// calculate the standard deviation of a list of values
-// operates only on the luminosity of the pixel
-inline double standardDeviation(const std::vector<BGRPixel> &values) {
-  double sum = 0.0;
-  double variance = 0.0;
-
-  for (int i = 0; i < values.size(); i++) {
-    sum += values[i].pixel.luminosity;
-  }
-
-  double mean = sum / values.size();
-  for (int i = 0; i < values.size(); i++) {
-    variance += std::pow(values[i].pixel.luminosity - mean, 2);
-  }
-
-  return std::sqrt(variance / values.size());
 }
 
 #endif // QUADRANT_H
