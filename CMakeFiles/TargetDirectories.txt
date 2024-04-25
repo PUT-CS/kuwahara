@@ -1,0 +1,3 @@
+/home/michal/Programming/kuwahara/CMakeFiles/kuwahara.dir
+/home/michal/Programming/kuwahara/CMakeFiles/edit_cache.dir
+/home/michal/Programming/kuwahara/CMakeFiles/rebuild_cache.dir
