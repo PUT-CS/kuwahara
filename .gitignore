@@ -9,3 +9,7 @@ CMakeCache.txt
 cmake_install.cmake
 CMakeFiles/
 diff*
+
+img/*
+!img/lena*.jpg
+!img/morskieOko*.jpg
