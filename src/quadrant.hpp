@@ -10,40 +10,22 @@
 
 enum QuadrantKind { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, NONE = -1 };
 
-struct QuadrantContainer {
-    BGRPixel* quadrants[4]; // 4 bgr pixel arrays
-    int write_counts[4]; // 4 counting arrays
-};
-
-inline void allocateQuadrants(QuadrantContainer &container, int quadrantArea) {
-    for (int i = 0; i < 4; i++) {
-        container.quadrants[i] = new BGRPixel[quadrantArea]();
-        container.write_counts[i] = 0;
-    }
-}
-
-inline void pushToQuadrant(QuadrantContainer &container, int i, BGRPixel pixel) {
-    container.quadrants[i][container.write_counts[i]++] = pixel;
-}
-
-inline void cleanQuadrants(QuadrantContainer &container) {
-    for (int i = 0; i < 4; i++) {
-        container.write_counts[i] = 0;
-    }
-}
-
-inline void deallocateQuadrants(QuadrantContainer &container) {
-    for (int i = 0; i < 4; i++) {
-        delete[] container.quadrants[i];
-    }
-}
-
 struct QuadrantResult {
     QuadrantKind q1;
     QuadrantKind q2;
 };
 
-typedef std::array<std::vector<BGRPixel>, 4> Quadrants;
+struct QuadrantData {
+    // average BGR calculation
+    unsigned bSum;
+    unsigned gSum;
+    unsigned rSum;
+    size_t count;
+    // Welford algorithm for calculating the variance
+    // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+    double varianceMean;
+    double varianceM2;
+};
 
 /// A pixel belongs to two quadrants at the same time.
 /// Fills the 2 int indexes with the quadrant values, else -1.
