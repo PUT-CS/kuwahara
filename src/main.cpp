@@ -16,18 +16,18 @@
 
 static int WINDOW_SIZE;
 
-bool pixelInBounds(int x, int y, const cv::Size size) {
+inline bool pixelInBounds(int x, int y, const cv::Size size) {
     return x >= 0 && x < size.height && y >= 0 && y < size.width;
 }
 
-void countPixel(QuadrantData& quadrantData, BGRPixel& pixel) {
+inline void countPixel(QuadrantData& quadrantData, BGRPixel& pixel) {
     quadrantData.bSum += pixel.data[0];
     quadrantData.gSum += pixel.data[1];
     quadrantData.rSum += pixel.data[2];
     updateVariance(quadrantData, pixel.pixel.luminosity); // count is updated here
 }
 
-void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x, int y, cv::Size size) {
+inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x, int y, cv::Size size) {
     const int quadrantSize = ceil(WINDOW_SIZE / 2.0);
     for (int i = -quadrantSize + 1; i < quadrantSize; i++) {
         for (int j = -quadrantSize + 1; j < quadrantSize; j++) {
@@ -60,11 +60,11 @@ void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x, int y,
     }
 }
 
-double standardDeviation(QuadrantData& quadrant) {
+inline double standardDeviation(QuadrantData& quadrant) {
     return std::sqrt(finalizeVariance(quadrant));
 }
 
-double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
+inline double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
     int minIdx = -1;
     double minStdDev = 255;
 
@@ -78,14 +78,14 @@ double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
             minIdx = i;
         }
     }
-    if (minIdx == -1) {
-        print("Error: No minimum standard deviation found");
-        exit(1);
-    }
+    // if (minIdx == -1) {
+    //     print("Error: No minimum standard deviation found");
+    //     exit(1);
+    // }
     return minIdx;
 }
 
-BGRPixel avgOfQuadrant(QuadrantData& quadrant) {
+inline BGRPixel avgOfQuadrant(QuadrantData& quadrant) {
     return {
         static_cast<uchar>(quadrant.bSum / quadrant.count),
         static_cast<uchar>(quadrant.gSum / quadrant.count),
@@ -99,7 +99,7 @@ void kuwahara(BGRPixel **image, BGRPixel **outputImage, cv::Size size) {
     for (int x = 0; x < size.height; x++) {
         for (int y = 0; y < size.width; y++) {
             for (int i = 0; i < 4; i++) {
-                quadrants[i] = {0, 0, 0, 0, 0};
+              quadrants[i] = {0, 0, 0, 0, 0, 0};
             }
             // loop through the entire window around this pixel
             // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
@@ -110,7 +110,6 @@ void kuwahara(BGRPixel **image, BGRPixel **outputImage, cv::Size size) {
             int minIdx = findIndexOfMinStdDev(quadrants);
 
             // calculate the average of the BGR pixels in the min stddev quadrant
-            BGRPixel avgPixel = avgOfQuadrant(quadrants[minIdx]);
             outputImage[x][y] = avgOfQuadrant(quadrants[minIdx]);
         }
     }
