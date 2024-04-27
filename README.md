@@ -21,11 +21,9 @@ make
 | Original Image | Radius 9 | Radius 17 |
 |:--------------:|:---------------------------:|:----------------------------:|
 | ![Original Lena](img/lena.jpg) | ![Filtered Lena (Radius=9)](img/lena9.jpg) | ![Filtered Lena (Radius=17)](img/lena17.jpg) |
-
-| Original Image | Radius 9 | Radius 17 |
-|:--------------:|:---------------------------:|:----------------------------:|
 | ![Original Morskie Oko](img/morskieOko.jpg) | ![Filtered Morskie Oko (Radius=9)](img/morskieOko9.jpg) | ![Filtered Morskie Oko (Radius=17)](img/morskieOko17.jpg) |
-
+| ![Original Jez](img/jez.jpg) | ![Filtered Jez (Radius=9)](img/jez9.jpg) | ![Filtered Jez (Radius=17)](img/jez17.jpg) |
+| ![Original NYC](img/nyc.jpg) | ![Filtered NYC (Radius=9)](img/nyc9.jpg) | ![Filtered NYC (Radius=17)](img/nyc17.jpg) |
 
 # Performance Benchmarks
 **TODO**
