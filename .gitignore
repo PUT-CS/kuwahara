@@ -9,7 +9,11 @@ CMakeCache.txt
 cmake_install.cmake
 CMakeFiles/
 diff*
+Makefile
+kuwahara
 
 img/*
 !img/lena*.jpg
 !img/morskieOko*.jpg
+!img/jez*.jpg
+!img/nyc*.jpg
