@@ -28,7 +28,7 @@ inline cv::Mat fromBGRPixelArray(BGRPixel **pixelArray, cv::Size size) {
     auto image = cv::Mat(size, CV_8UC3);
     for (int i = 0; i < size.height; i++) {
         for (int j = 0; j < size.width; j++) {
-            auto &pixel = image.at<Pixel>(i, j);
+            auto &pixel = image.ptr<Pixel>(i)[j];
             pixel[0] = pixelArray[i][j].data[0];
             pixel[1] = pixelArray[i][j].data[1];
             pixel[2] = pixelArray[i][j].data[2];
@@ -45,21 +45,11 @@ inline BGRPixel** allocateBGRPixelArray(cv::Size size) {
     return pixelArray;
 }
 
-inline void deallocateBGRPixelArray(BGRPixel **pixelArray, cv::Size size) {
+inline void freeBGRPixelArray(BGRPixel **pixelArray, cv::Size size) {
     for (int i = 0; i < size.height; i++) {
         delete[] pixelArray[i];
     }
     delete[] pixelArray;
-}
-
-inline void printBGRPixelArray(BGRPixel **pixelArray, cv::Size size) {
-    for (int i = 0; i < size.height; i++) {
-        for (int j = 0; j < size.width; j++) {
-            auto &pixel = pixelArray[i][j];
-            std::cout << "(" << (int) pixel.data[0] << ", " << (int) pixel.data[1] << ", " << (int) pixel.data[2] << ") ";
-        }
-        std::cout << std::endl;
-    }
 }
 
 #endif //BGR_IMAGE_H

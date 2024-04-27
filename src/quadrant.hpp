@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 #include "pixel.hpp"
 #include "print.hpp"
@@ -32,7 +33,6 @@ struct QuadrantData {
 /// The first field is always set. The second field is set only if the pixel belongs to two quadrants.
 inline QuadrantResult checkQuadrant(int i, int j)
 {
-    // base cases where the pixel belongs to just one quadrant
     if (i < 0 && j < 0) {
         return { TOP_LEFT, NONE };
     } else if (i > 0 && j < 0) {
@@ -41,22 +41,21 @@ inline QuadrantResult checkQuadrant(int i, int j)
         return { BOTTOM_LEFT, NONE };
     } else if (i > 0 && j > 0) {
         return { BOTTOM_RIGHT, NONE };
+    } else if (i == 0) {
+        if (j < 0) {
+            return { TOP_LEFT, TOP_RIGHT };
+        } else if (j > 0) {
+            return { BOTTOM_LEFT, BOTTOM_RIGHT };
+        }
+    } else if (j == 0) {
+        if (i < 0) {
+            return { TOP_LEFT, BOTTOM_LEFT };
+        } else if (i > 0) {
+            return { TOP_RIGHT, BOTTOM_RIGHT };
+        }
     }
-
-    // pixels that belong to two quadrants at once
-    if (i == 0 && j < 0) {
-        return { TOP_LEFT, TOP_RIGHT };
-    } else if (i == 0 && j > 0) {
-        return { BOTTOM_LEFT, BOTTOM_RIGHT };
-    } else if (i < 0 && j == 0) {
-        return { TOP_LEFT, BOTTOM_LEFT };
-    } else if (i > 0 && j == 0) {
-        return { TOP_RIGHT, BOTTOM_RIGHT };
-    }
-
-    // should never happen, we ignore the central pixel
-    print("Error: Pixel belongs to no quadrant");
-    return { NONE, NONE };
+    
+    throw std::runtime_error("Pixel doesn't belong to any quadrant (logic error)");
 }
 
 #endif // QUADRANT_H

@@ -5,7 +5,6 @@
 #include "welford.hpp"
 #include <array>
 #include <cmath>
-#include <cstddef>
 #include <iostream>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
@@ -14,21 +13,46 @@
 #include <string>
 #include <vector>
 
-static int WINDOW_SIZE;
-
 inline bool pixelInBounds(int x, int y, const cv::Size size) {
     return x >= 0 && x < size.height && y >= 0 && y < size.width;
 }
 
-inline void countPixel(QuadrantData& quadrantData, BGRPixel& pixel) {
+inline void countPixel(QuadrantData &quadrantData, BGRPixel &pixel) {
     quadrantData.bSum += pixel.data[0];
     quadrantData.gSum += pixel.data[1];
     quadrantData.rSum += pixel.data[2];
     updateVariance(quadrantData, pixel.pixel.luminosity); // count is updated here
 }
 
-inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x, int y, cv::Size size) {
-    const int quadrantSize = ceil(WINDOW_SIZE / 2.0);
+inline double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
+    int minIdx = -1;
+    double minStdDev = 255;
+
+    for (int i = 0; i < 4; i++) {
+        if (quadrants[i].count == 0) {
+            continue;
+        }
+        double currStdDev = std::sqrt(finalizeVariance(quadrants[i]));
+        if (currStdDev < minStdDev) { // new minimum
+            minStdDev = currStdDev;
+            minIdx = i;
+        }
+    }
+    if (minIdx == -1) {
+        print("Error: No minimum standard deviation found");
+        exit(1);
+    }
+    return minIdx;
+}
+
+inline BGRPixel avgOfQuadrant(QuadrantData &quadrant) {
+    return {static_cast<uchar>(quadrant.bSum / quadrant.count),
+            static_cast<uchar>(quadrant.gSum / quadrant.count),
+            static_cast<uchar>(quadrant.rSum / quadrant.count), 0};
+}
+
+inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x, int y,
+                             cv::Size size, int quadrantSize) {
     for (int i = -quadrantSize + 1; i < quadrantSize; i++) {
         for (int j = -quadrantSize + 1; j < quadrantSize; j++) {
             // check if the pixel is within the bounds of the image
@@ -49,61 +73,27 @@ inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x,
             auto quadrantResult = checkQuadrant(i, j);
 
             // add the pixel to quadrant arrays
-            // quadrants[quadrantResult.q1][counts[quadrantResult.q1]++] = bgrPixel;
             countPixel(quadrants[quadrantResult.q1], bgrPixel);
             // if the pixel belongs to two quadrants, add it to the second one
             if (quadrantResult.q2 != NONE) {
-                // quadrants[quadrantResult.q2][counts[quadrantResult.q2]++] = bgrPixel;
                 countPixel(quadrants[quadrantResult.q2], bgrPixel);
             }
         }
     }
 }
 
-inline double standardDeviation(QuadrantData& quadrant) {
-    return std::sqrt(finalizeVariance(quadrant));
-}
-
-inline double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
-    int minIdx = -1;
-    double minStdDev = 255;
-
-    for (int i = 0; i < 4; i++) {
-        if (quadrants[i].count == 0) {
-            continue;
-        }
-        double currStdDev = standardDeviation(quadrants[i]);
-        if (currStdDev < minStdDev) { // new minimum
-            minStdDev = currStdDev;
-            minIdx = i;
-        }
-    }
-    // if (minIdx == -1) {
-    //     print("Error: No minimum standard deviation found");
-    //     exit(1);
-    // }
-    return minIdx;
-}
-
-inline BGRPixel avgOfQuadrant(QuadrantData& quadrant) {
-    return {
-        static_cast<uchar>(quadrant.bSum / quadrant.count),
-        static_cast<uchar>(quadrant.gSum / quadrant.count),
-        static_cast<uchar>(quadrant.rSum / quadrant.count),
-        0
-    };
-}
-
-void kuwahara(BGRPixel **image, BGRPixel **outputImage, cv::Size size) {
-    QuadrantData quadrants[4];
-    for (int x = 0; x < size.height; x++) {
-        for (int y = 0; y < size.width; y++) {
+void kuwahara(BGRPixel **image, BGRPixel **outputImage, cv::Size size, int quadrantSize) {
+    int x, y;
+    #pragma omp parallel for private(y) collapse(2)
+    for (x = 0; x < size.height; x++) {
+        for (y = 0; y < size.width; y++) {
+            QuadrantData quadrants[4];
             for (int i = 0; i < 4; i++) {
-              quadrants[i] = {0, 0, 0, 0, 0, 0};
+                quadrants[i] = {0, 0, 0, 0, 0, 0};
             }
             // loop through the entire window around this pixel
             // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
-            processQuadrants(quadrants, image, x, y, size);
+            processQuadrants(quadrants, image, x, y, size, quadrantSize);
 
             // after checking all quadrants, calculcate the standard deviations
             // check which quadrant has the minimum standard deviation
@@ -125,14 +115,13 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    WINDOW_SIZE = 5;
+    int windowSize = 9;
     if (argv[3] != nullptr && argv[4] != nullptr && std::string(argv[3]) == "--window") {
-        int num = std::stoi(argv[4]);
-        if (num % 2 == 0) {
+        windowSize = std::stoi(argv[4]);
+        if (windowSize % 2 == 0) {
             std::cerr << "Error: Window size must be an odd number" << std::endl;
             return -1;
         }
-        WINDOW_SIZE = std::stoi(argv[4]);
     }
 
     cv::Mat bgrImage = cv::imread(inputPath, cv::IMREAD_COLOR);
@@ -147,8 +136,9 @@ int main(int argc, char **argv) {
     BGRPixel **outputPixels = allocateBGRPixelArray(size);
 
     auto start = std::chrono::high_resolution_clock::now();
-
-    kuwahara(pixels, outputPixels, size);
+    int quadrantSize = std::ceil(windowSize / 2.0);
+    
+    kuwahara(pixels, outputPixels, size, quadrantSize);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
@@ -157,8 +147,8 @@ int main(int argc, char **argv) {
     auto outputMat = fromBGRPixelArray(outputPixels, size);
     cv::imwrite(outputPath, outputMat);
 
-    deallocateBGRPixelArray(pixels, size);
-    deallocateBGRPixelArray(outputPixels, size);
+    freeBGRPixelArray(pixels, size);
+    freeBGRPixelArray(outputPixels, size);
 
     return 0;
 }
