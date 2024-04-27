@@ -6,6 +6,7 @@ There are three branches with three separate implementations of the same algorit
 This project aims to measure execution time differences between sequential and parallel code, including GPU parellelization.
 
 # Usage
+There's a dependency on **OpenCV**, so make sure it's installed.
 ## Compile
 ```bash
 cmake .
@@ -15,30 +16,16 @@ make
 ```bash
 ./kuwahara INPUT_IMAGE_PATH OUTPUT_IMAGE_PATH [--window WINDOW_SIZE]
 ```
-# Showcase
-Numbers indicate the window dimensions (it's always square for now)
+# Examples
 
-Top image: Original
+| Original Image | Radius 9 | Radius 17 |
+|:--------------:|:---------------------------:|:----------------------------:|
+| ![Original Lena](img/lena.jpg) | ![Filtered Lena (Radius=9)](img/lena9.jpg) | ![Filtered Lena (Radius=17)](img/lena17.jpg) |
 
-Bottom row: 5, 9, 13, 17
+| Original Image | Radius 9 | Radius 17 |
+|:--------------:|:---------------------------:|:----------------------------:|
+| ![Original Morskie Oko](img/morskieOko.jpg) | ![Filtered Morskie Oko (Radius=9)](img/morskieOko9.jpg) | ![Filtered Morskie Oko (Radius=17)](img/morskieOko17.jpg) |
 
-<p align="middle">
-  <img src="img/lena.jpg" width="200" />
-  <br>
-  <img src="img/lena5.jpg" width="200" />
-  <img src="img/lena9.jpg" width="200" />
-  <img src="img/lena13.jpg" width="200" />
-  <img src="img/lena17.jpg" width="200" />
-</p>
-
-<p align="middle">
-  <img src="img/morskieOko.jpg" width="200" />
-  <br>
-  <img src="img/morskieOko5.jpg" width="200" />
-  <img src="img/morskieOko9.jpg" width="200" />
-  <img src="img/morskieOko13.jpg" width="200" />
-  <img src="img/morskieOko17.jpg" width="200" />
-</p>
 
 # Performance Benchmarks
 **TODO**
