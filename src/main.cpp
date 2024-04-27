@@ -83,10 +83,8 @@ inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x,
 }
 
 void kuwahara(BGRPixel **image, BGRPixel **outputImage, cv::Size size, int quadrantSize) {
-    int x, y;
-    #pragma omp parallel for private(y) collapse(2)
-    for (x = 0; x < size.height; x++) {
-        for (y = 0; y < size.width; y++) {
+    for (int x = 0; x < size.height; x++) {
+        for (int y = 0; y < size.width; y++) {
             QuadrantData quadrants[4];
             for (int i = 0; i < 4; i++) {
                 quadrants[i] = {0, 0, 0, 0, 0, 0};
