@@ -1,11 +1,18 @@
 #ifndef BGR_IMAGE_H
 #define BGR_IMAGE_H
 
-#include "pixel.hpp"
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv4/opencv2/opencv.hpp>
+#include "pixel.cuh"
+
+typedef cv::Vec3b Pixel;
+
+/// calculate the luminosity of a BGR pixel
+inline double luminosity(const Pixel& pixel) {
+    return 0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0];
+}
 
 inline BGRPixel **intoBGRPixelArray(cv::Mat &image) {
     auto pixelArray = new BGRPixel *[image.size().height];
