@@ -1,9 +1,9 @@
 #include "pixel.cuh"
 #include "quadrant.cuh"
-#include "wrapper.cuh"
+#include "kernel.cuh"
 #include "stdio.h"
 
-__device__ inline void updateVariance(QuadrantData& quadrant, double newValue) {
+__device__ void updateVariance(QuadrantData& quadrant, double newValue) {
     quadrant.count++;
     double delta = newValue - quadrant.varianceMean;
     quadrant.varianceMean += delta / quadrant.count;
@@ -11,7 +11,7 @@ __device__ inline void updateVariance(QuadrantData& quadrant, double newValue) {
     quadrant.varianceM2 += delta * delta2;
 }
 
-__device__ inline double finalizeVariance(QuadrantData& quadrant) {
+__device__ double finalizeVariance(QuadrantData& quadrant) {
     if (quadrant.count < 2) {
         return 255; // return a large value to indicate that the variance is not valid
     }
@@ -21,7 +21,7 @@ __device__ inline double finalizeVariance(QuadrantData& quadrant) {
 /// A pixel belongs to two quadrants at the same time.
 /// Fills the 2 int indexes with the quadrant values, else -1.
 /// The first field is always set. The second field is set only if the pixel belongs to two quadrants.
-__device__ inline QuadrantResult checkQuadrant(int i, int j)
+__device__ QuadrantResult checkQuadrant(int i, int j)
 {
     if (i < 0 && j < 0) {
         return { TOP_LEFT, NONE };
@@ -48,23 +48,22 @@ __device__ inline QuadrantResult checkQuadrant(int i, int j)
 }
 
 /// calculate the luminosity of a BGR pixel
-__device__ inline double luminosity(const BGRPixel &pixel) {
+__device__ double luminosity(const BGRPixel &pixel) {
     return 0.299 * pixel.pixel.r + 0.587 * pixel.pixel.g + 0.114 * pixel.pixel.b;
 }
 
-__device__ inline bool pixelInBounds(int x, int y, int sizeX, int sizeY) {
+__device__ bool pixelInBounds(int x, int y, int sizeX, int sizeY) {
     return x >= 0 && x < sizeX && y >= 0 && y < sizeY;
-    // x height y width
 }
 
-__device__ inline void countPixel(QuadrantData &quadrantData, BGRPixel &pixel) {
+__device__ void countPixel(QuadrantData &quadrantData, BGRPixel &pixel) {
     quadrantData.bSum += pixel.data[0];
     quadrantData.gSum += pixel.data[1];
     quadrantData.rSum += pixel.data[2];
     updateVariance(quadrantData, pixel.pixel.luminosity); // count is updated here
 }
 
-__device__ inline double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
+__device__ double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
     int minIdx = -1;
     double minStdDev = 255;
 
@@ -81,13 +80,13 @@ __device__ inline double findIndexOfMinStdDev(QuadrantData quadrants[4]) {
     return minIdx;
 }
 
-__device__ inline BGRPixel avgOfQuadrant(QuadrantData &quadrant) {
+__device__ BGRPixel avgOfQuadrant(QuadrantData &quadrant) {
     return {static_cast<uchar>(quadrant.bSum / quadrant.count),
             static_cast<uchar>(quadrant.gSum / quadrant.count),
             static_cast<uchar>(quadrant.rSum / quadrant.count), 0};
 }
 
-__device__ inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **image, int x, int y,
+__device__ void processQuadrants(QuadrantData quadrants[4], BGRPixel *image, int x, int y,
                                         int sizeX, int sizeY, int quadrantSize) {
     for (int i = -quadrantSize + 1; i < quadrantSize; i++) {
         for (int j = -quadrantSize + 1; j < quadrantSize; j++) {
@@ -95,7 +94,7 @@ __device__ inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **im
             int pixelX = x + i, pixelY = y + j;
             if (!pixelInBounds(pixelX, pixelY, sizeX, sizeY) || i == 0 || j == 0)
                 continue;
-            auto &neighbourPixel = image[pixelX][pixelY];
+            auto &neighbourPixel = image[pixelY * sizeX + pixelX];
 
             // calculate luminosity of the rbg pixel to avod the problem
             // described here
@@ -118,29 +117,21 @@ __device__ inline void processQuadrants(QuadrantData quadrants[4], BGRPixel **im
     }
 }
 
-__global__ void kuwahara(BGRPixel **image, BGRPixel **outputImage, int sizeX, int sizeY, int quadrantSize) {
-    for (int x = 0; x < sizeX; x++) {
-        for (int y = 0; y < sizeY; y++) {
-            QuadrantData quadrants[4];
-            for (int i = 0; i < 4; i++) {
-                quadrants[i] = {0, 0, 0, 0, 0, 0};
-            }
-            // loop through the entire window around this pixel
-            // https://en.wikipedia.org/wiki/Kuwahara_filter#/media/File:Kuwahara.jpg
-            processQuadrants(quadrants, image, x, y, sizeX, sizeY, quadrantSize);
-
-            // after checking all quadrants, calculcate the standard deviations
-            // check which quadrant has the minimum standard deviation
-            int minIdx = findIndexOfMinStdDev(quadrants);
-
-            // calculate the average of the BGR pixels in the min stddev quadrant
-            outputImage[x][y] = avgOfQuadrant(quadrants[minIdx]);
-        }
+__global__ void kuwahara(BGRPixel *image, BGRPixel *outputImage, int sizeX, int sizeY, int quadrantSize) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= sizeX || y >= sizeY) {
+        return;
     }
+    
+    QuadrantData quadrants[4] = {};
+    processQuadrants(quadrants, image, x, y, sizeX, sizeY, quadrantSize);
+    int minIdx = findIndexOfMinStdDev(quadrants);
+    outputImage[y * sizeX + x] = avgOfQuadrant(quadrants[minIdx]);
 }
 
 namespace KernelWrapper {
-  void launchKuwaharaKernel(BGRPixel **image, BGRPixel **outputImage, int sizeX, int sizeY, int quadrantSize) {
+  void launchKuwaharaKernel(BGRPixel *image, BGRPixel *outputImage, int sizeX, int sizeY, int quadrantSize) {
     const int blockX = 16;
     const int blockY = 16;
     dim3 numberOfBlocks(sizeX / blockX + 1, sizeY / blockY + 1);

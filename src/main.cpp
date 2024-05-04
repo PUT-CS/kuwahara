@@ -1,7 +1,6 @@
 #include "BGRImage.hpp"
 #include "pixel.cuh"
 #include "print.hpp"
-#include "wrapper.cuh"
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -11,7 +10,7 @@
 #include <opencv4/opencv2/opencv.hpp>
 #include <string>
 #include <vector>
-#include "wrapper.cuh"
+#include "kernel.cuh"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -42,44 +41,46 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    BGRPixel **pixels = intoBGRPixelArray(bgrImage);
-    BGRPixel **outputPixels = allocateBGRPixelArray(size);
+    // BGRPixel **pixels = intoBGRPixelArray(bgrImage);
+    // BGRPixel **outputPixels = allocateBGRPixelArray(size);
+    BGRPixel *pixels = intoBGRPixelArray1D(bgrImage);
+    BGRPixel *outputPixels = allocateBGRPixelArray1D(size);
 
     auto start = std::chrono::high_resolution_clock::now();
     int quadrantSize = std::ceil(windowSize / 2.0);
 
-    BGRPixel** cudaPixels;
-    BGRPixel** cudaOutputPixels; 
+    BGRPixel* devicePixels;
+    BGRPixel* deviceOutputPixels; 
 
-    int numberOfPixels = size.width * size.height;
+    int imageSize = size.width * size.height * sizeof(BGRPixel);
     
     // allocate to the pointers
-    cudaMalloc((BGRPixel**) &cudaPixels, numberOfPixels * sizeof(BGRPixel));
-    cudaMalloc((BGRPixel**) &cudaOutputPixels, numberOfPixels * sizeof(BGRPixel));
-
-    print(size.width, size.height);
-    printf("Allocated memory for %d pixels\n", numberOfPixels);
+    cudaMalloc((void**) &devicePixels, imageSize);
+    cudaMalloc((void**) &deviceOutputPixels, imageSize);
 
     // copy image data to the device
-    cudaMemcpy(cudaPixels, pixels, numberOfPixels * sizeof(BGRPixel), cudaMemcpyHostToDevice);
-    cudaMemcpy(cudaOutputPixels, outputPixels, numberOfPixels * sizeof(BGRPixel), cudaMemcpyHostToDevice);
+    cudaMemcpy(devicePixels, pixels, imageSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(deviceOutputPixels, outputPixels, imageSize, cudaMemcpyHostToDevice);
     
-    KernelWrapper::launchKuwaharaKernel(pixels, outputPixels, size.width, size.height, quadrantSize);
-    cudaError_t errorCode = cudaGetLastError();
-    printf("CUDA error: %s\n", cudaGetErrorString(errorCode));
+    KernelWrapper::launchKuwaharaKernel(devicePixels, deviceOutputPixels, size.width, size.height, quadrantSize);
     cudaDeviceSynchronize();
     
-    cudaMemcpy(outputPixels, cudaOutputPixels, numberOfPixels * sizeof(BGRPixel), cudaMemcpyDeviceToHost);
+    //cudaError_t errorCode = cudaGetLastError();
+    //printf("CUDA error: %s\n", cudaGetErrorString(errorCode));
+    
+    cudaMemcpy(outputPixels, deviceOutputPixels, imageSize, cudaMemcpyDeviceToHost);
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     print(elapsed.count());
 
-    auto outputMat = fromBGRPixelArray(outputPixels, size);
+    auto outputMat = fromBGRPixelArray1D(outputPixels, size);
     cv::imwrite(outputPath, outputMat);
 
-    freeBGRPixelArray(pixels, size);
-    freeBGRPixelArray(outputPixels, size);
+    delete pixels;
+    delete outputPixels;
+    cudaFree(devicePixels);
+    cudaFree(deviceOutputPixels);
 
     return 0;
 }
