@@ -103,8 +103,11 @@ def main(repo_url, clone_dir, branch_names, window_sizes, executable_arguments, 
 
     # Plotting the execution times
     plt.figure(figsize=(10, 6))
+    ax = plt.gca()
+    ax.set_xlim(window_sizes[0], window_sizes[-1] + 1)
+    ax.set_ylim(0, max([max(times.values()) for times in average_execution_times.values()]) + 0.1)
     for branch_name, times in average_execution_times.items():
-        plt.plot(times.keys(), times.values(), label=branch_name)
+        plt.plot(times.keys(), times.values(), label=branch_name, linewidth=3.0)
     plt.title('Average Execution Time by Implementation and Kernel Size')
     plt.xlabel('Kernel Size')
     plt.ylabel('Average Execution Time (seconds)')
@@ -126,8 +129,8 @@ if __name__ == "__main__":
     # Define constants
     repo_url = "https://github.com/PUT-CS/kuwahara.git"
     clone_dir = "/tmp/kuwahara"
-    branch_names = ["sequential", "openmp"]
-    window_sizes = [5, 9, 13, 17, 21, 25]
+    branch_names = ["sequential", "openmp", "cuda"]
+    window_sizes = [5, 9, 13, 17, 21, 25, 27, 31, 35, 39, 43]
     executable_arguments = [f"{os.path.join(clone_dir, 'img/jez.jpg')} {os.path.join(clone_dir, 'img/test.jpg')} --window {size}" for size in window_sizes]
 
     # Run the main function

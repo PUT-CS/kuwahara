@@ -7,6 +7,7 @@ This project aims to measure execution time differences between sequential and p
 
 # Usage
 There's a dependency on **OpenCV**, so make sure it's installed.
+For the CUDA branch, there's obviously a dependency on the Nvidia libraries and toolkits.
 ## Compile
 ```bash
 cmake .
@@ -26,7 +27,12 @@ make
 | ![Original NYC](img/nyc.jpg) | ![Filtered NYC (Radius=9)](img/nyc9.jpg) | ![Filtered NYC (Radius=17)](img/nyc17.jpg) |
 
 # Performance Benchmarks
-**TODO**
+## Benchmarking Script
+I've written a script to benchmark code located on different branches of the same repo - `branchbench.py`.
+Perhaps one day I'll make it into its own project, but for now it's embedded into this one.
+For the script to work your program's only output (to stdout) must be a string parsable into `float` by Python.
+
+**GRAPH HERE**
 
 # Author
 Michał Miłek
