@@ -46,7 +46,6 @@ int main(int argc, char **argv) {
     BGRPixel *pixels = intoBGRPixelArray1D(bgrImage);
     BGRPixel *outputPixels = allocateBGRPixelArray1D(size);
 
-    auto start = std::chrono::high_resolution_clock::now();
     int quadrantSize = std::ceil(windowSize / 2.0);
 
     BGRPixel* devicePixels;
@@ -62,15 +61,18 @@ int main(int argc, char **argv) {
     cudaMemcpy(devicePixels, pixels, imageSize, cudaMemcpyHostToDevice);
     cudaMemcpy(deviceOutputPixels, outputPixels, imageSize, cudaMemcpyHostToDevice);
     
+    auto start = std::chrono::high_resolution_clock::now();
+    
     KernelWrapper::launchKuwaharaKernel(devicePixels, deviceOutputPixels, size.width, size.height, quadrantSize);
     cudaDeviceSynchronize();
+    
+    auto end = std::chrono::high_resolution_clock::now();
     
     //cudaError_t errorCode = cudaGetLastError();
     //printf("CUDA error: %s\n", cudaGetErrorString(errorCode));
     
     cudaMemcpy(outputPixels, deviceOutputPixels, imageSize, cudaMemcpyDeviceToHost);
 
-    auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     print(elapsed.count());
 
