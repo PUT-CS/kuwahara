@@ -130,7 +130,7 @@ if __name__ == "__main__":
     repo_url = "https://github.com/PUT-CS/kuwahara.git"
     clone_dir = "/tmp/kuwahara"
     branch_names = ["sequential", "openmp", "cuda"]
-    window_sizes = [5, 9, 13, 17, 21, 25, 27, 31, 35, 39, 43]
+    window_sizes = [5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45]
     executable_arguments = [f"{os.path.join(clone_dir, 'img/jez.jpg')} {os.path.join(clone_dir, 'img/test.jpg')} --window {size}" for size in window_sizes]
 
     # Run the main function
