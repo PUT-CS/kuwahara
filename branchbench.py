@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import decimal
 from colorama import init, Fore, Style
+import pprint
 
 # Initialize colorama
 init()
@@ -100,7 +101,9 @@ def main(repo_url, clone_dir, branch_names, window_sizes, executable_arguments, 
 
     # Calculate average execution times
     average_execution_times = {branch_name: {size: np.mean(times) for size, times in times_dict.items()} for branch_name, times_dict in execution_times.items()}
-
+    
+    pprint.pp(average_execution_times)
+    
     # Plotting the execution times
     plt.figure(figsize=(10, 6))
     ax = plt.gca()
